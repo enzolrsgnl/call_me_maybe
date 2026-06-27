@@ -75,8 +75,9 @@ class GenerationState():
         self.treated_params = treated_params
 
 
-step_target = {Step.OPEN_BRACE: '{', Step.NAME_KEY: '\"name\": \"',
-               Step.PARAMETERS_KEY: ',\"parameters\": {', Step.SEPARATOR: ',',
+step_target = {Step.OPEN_BRACE: '{', Step.NAME_KEY: '\"name\":Ġ\"',
+               Step.PARAMETERS_KEY: ',Ġ\"parameters\":Ġ{\"',
+               Step.SEPARATOR: ',Ġ\"',
                Step.CLOSING_PARAM: '}', Step.CLOSING_BRACE: '}'}
 
 
@@ -158,7 +159,7 @@ def get_candidat(current_state: Step,
         remaining = []
         for elem in current_function.parameters.keys():
             if elem not in treated_params:
-                remaining.append(elem)
+                remaining.append(elem + '":')
         return remaining
     else:
         raise ValueError(f"Unexpected state: {current_state}")
@@ -189,7 +190,8 @@ def is_valid_string_token(token_string: str, already_generated: str) -> bool:
 
 
 def get_valid_tokens_for_value(vocab: dict[str, int], already_generated: str,
-                               param_type: str) -> list[int]:
+                               param_type: str, treated_params: list[str],
+                               parameters_number: int) -> list[int]:
     """ This function is a token validator for the param_value state,
     when we are treating the parameter value,
     we have to validate the token sequence cause the generation is free """
@@ -198,6 +200,12 @@ def get_valid_tokens_for_value(vocab: dict[str, int], already_generated: str,
         if param_type == "number":
             number_validation = is_valid_number_token(token_string,
                                                       already_generated)
+            if len(treated_params) + 1 >= parameters_number:
+                closing_char = "}"
+            else:
+                closing_char = ","
+            if token_string == closing_char:
+                valids_token_id.append(token_id)
             if number_validation:
                 valids_token_id.append(token_id)
         elif param_type == "string":
@@ -236,7 +244,8 @@ def transitionner(state: GenerationState) -> None:
                                                 state.current_function,
                                                 state.treated_params)
             state.current_generated_text = ""
-            state.current_param_name = remaining[0]
+            cleaned = remaining[0][:-2]
+            state.current_param_name = cleaned
     elif state.current_state == Step.PARAM_VALUE:
         param_type = (
             state.current_function.parameters[state.current_param_name].type
@@ -244,6 +253,7 @@ def transitionner(state: GenerationState) -> None:
         if param_type == "string":
             if (state.current_generated_text[-1] == '"'
                and len(state.current_generated_text) > 1):
+                state.treated_params.append(state.current_param_name)
                 state.current_state = get_next_step(state.current_state,
                                                     state.current_function,
                                                     state.treated_params)
@@ -254,19 +264,34 @@ def transitionner(state: GenerationState) -> None:
                 state.current_generated_text = (
                     state.current_generated_text[:-1]
                 )
+                state.treated_params.append(state.current_param_name)
                 state.current_state = get_next_step(state.current_state,
                                                     state.current_function,
                                                     state.treated_params)
                 state.current_generated_text = last_char
+                transitionner(state)
         elif param_type == "boolean":
             remaining = filter_candidate(["true", "false"],
                                          state.current_generated_text)
             if (remaining[0] == state.current_generated_text
                and len(remaining) == 1):
+                state.treated_params.append(state.current_param_name)
                 state.current_state = get_next_step(state.current_state,
                                                     state.current_function,
                                                     state.treated_params)
                 state.current_generated_text = ""
+
+
+def is_generation_complete(state: GenerationState) -> bool:
+    """ This function is just an helper for the transitionner to check if
+    the actual reinitialised state is already the end character """
+    if (
+        state.current_state == Step.CLOSING_BRACE
+        and state.current_generated_text == step_target[Step.CLOSING_BRACE]
+    ):
+        return True
+    else:
+        return False
 
 
 def generate_json(model: Small_LLM_Model,
@@ -285,6 +310,7 @@ def generate_json(model: Small_LLM_Model,
     while (state.current_state != Step.CLOSING_BRACE
            or state.current_generated_text != step_target[Step.CLOSING_BRACE]):
         logits = model.get_logits_from_input_ids(state.current_token_sequence)
+        parameters_effectif = len(state.current_function.parameters)
         if state.current_state == Step.PARAM_VALUE:
             current_param = (
                 state.current_function.parameters[state.current_param_name]
@@ -294,7 +320,9 @@ def generate_json(model: Small_LLM_Model,
                 valid_ids = (
                     get_valid_tokens_for_value(vocab,
                                                state.current_generated_text,
-                                               param_type)
+                                               param_type,
+                                               state.treated_params,
+                                               parameters_effectif)
                     )
             else:
                 valid_ids = (
@@ -320,7 +348,12 @@ def generate_json(model: Small_LLM_Model,
             + id_to_str[choosen_token_id]
             )
         state.current_token_sequence.append(choosen_token_id)
+        print(f"State: {state.current_state},"
+              f"Generated: {state.current_generated_text!r},"
+              f"Tokens so far: {len(state.current_token_sequence)}")
         transitionner(state)
+        if is_generation_complete(state):
+            break
 
     initial_len = len(initial_tokens)
     valid_json = state.current_token_sequence[initial_len:]
