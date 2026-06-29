@@ -76,7 +76,7 @@ class GenerationState():
 
 
 step_target = {Step.OPEN_BRACE: '{', Step.NAME_KEY: '\"name\":Ġ\"',
-               Step.PARAMETERS_KEY: ',Ġ\"parameters\":Ġ{\"',
+               Step.PARAMETERS_KEY: '",Ġ\"parameters\":Ġ{\"',
                Step.SEPARATOR: ',Ġ\"',
                Step.CLOSING_PARAM: '}', Step.CLOSING_BRACE: '}'}
 
@@ -161,6 +161,8 @@ def get_candidat(current_state: Step,
             if elem not in treated_params:
                 remaining.append(elem + '":')
         return remaining
+    elif current_state == Step.CLOSING_BRACE:
+        return [step_target[current_state]]
     else:
         raise ValueError(f"Unexpected state: {current_state}")
 
@@ -181,9 +183,14 @@ def is_valid_string_token(token_string: str, already_generated: str) -> bool:
     """ This function use string_checker to test if the token sequence
     is valid when its a string """
     generated_updated = already_generated
-    for c in token_string:
+    for index, c in enumerate(token_string):
         if string_checker(c, generated_updated):
             generated_updated = generated_updated + c
+            if (
+                c == '"' and len(generated_updated) > 1
+                and index != len(token_string) - 1
+            ):
+                return False
         else:
             return False
     return True
@@ -300,9 +307,17 @@ def generate_json(model: Small_LLM_Model,
                   function: Function) -> dict[str, float | str | bool]:
     """ This is the most important function of the file,
     its the principal loop to generate the json format token by token """
-    encoded = model.encode(prompt.prompt)
+    enriched_prompt = (
+        f"Function: {function.name}\n"
+        f"Description: {function.description}\n"
+        f"Parameters: {function.parameters}\n"
+        f"Question: {prompt.prompt}"
+    )
+
+    encoded = model.encode(enriched_prompt)
     first_batch = encoded[0]
     initial_tokens = first_batch.tolist()
+    initial_len = len(initial_tokens)
     state = (
         GenerationState(Step.OPEN_BRACE, function, "", "", initial_tokens, [])
         )
@@ -348,14 +363,11 @@ def generate_json(model: Small_LLM_Model,
             + id_to_str[choosen_token_id]
             )
         state.current_token_sequence.append(choosen_token_id)
-        print(f"State: {state.current_state},"
-              f"Generated: {state.current_generated_text!r},"
-              f"Tokens so far: {len(state.current_token_sequence)}")
         transitionner(state)
+        print(f"  -> {state.current_state}: {state.current_generated_text!r}")
         if is_generation_complete(state):
             break
 
-    initial_len = len(initial_tokens)
     valid_json = state.current_token_sequence[initial_len:]
     final_json_str = model.decode(valid_json)
     final_json = json.loads(final_json_str)

@@ -35,6 +35,7 @@ except PermissionError as e:
 
 result = []
 for prompt in prompt_parsed:
+    print(f"Traitement: {prompt.prompt}")
     choosen_func = func_chooser(vocab, model,
                                 prompt, func_parsed)
     generated = generate_json(model, vocab,
