@@ -10,10 +10,19 @@ def func_chooser(vocab: dict[str, int], model: Small_LLM_Model,
     current_generated_text = ""
     descriptions = ""
     for f in functions:
-        descriptions = descriptions + f"- {f.name}: {f.description}\n"
+        parameter_names = ", ".join(f.parameters.keys())
+        descriptions = (
+            descriptions
+            + f"- {f.name}({parameter_names}): {f.description}\n"
+        )
     enriched_prompt = (
+        f"Choose the function that performs the user's requested action.\n"
         f"Available functions:\n{descriptions}\n"
         f"Question: {prompt.prompt}\n"
+        f"Mandatory rule: follow the requested action verb. Choose a math "
+        f"function only for an explicit calculation. For replace or "
+        f"substitute, choose the function described as replacing matches, "
+        f"even when the source text contains numbers.\n"
         f"Answer with a single function name only:\n"
     )
     token_sequence = model.encode(enriched_prompt)[0].tolist()

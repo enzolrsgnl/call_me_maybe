@@ -1,0 +1,11 @@
+[
+  {
+    "prompt": "Substitute the word 'cat' with 'dog' in 'The cat sat on the mat with another cat'"
+  },
+  {
+    "prompt": "Replace all vowels in 'Programming is fun' with asterisks"
+  },
+  {
+    "prompt": "Replace all digits in 'abc123' with X"
+  }
+]
