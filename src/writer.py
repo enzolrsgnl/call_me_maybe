@@ -10,8 +10,9 @@ def writer(path: Path, output: list[OutputResult]) -> None:
     for elem in output:
         result.append(elem.model_dump())
     try:
+        path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
-            json.dump(result, f)
+            json.dump(result, f, indent=4)
     except FileNotFoundError as e:
         print(f"Invalid path file: {e}")
         sys.exit(1)

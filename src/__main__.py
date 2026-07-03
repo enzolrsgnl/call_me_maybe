@@ -35,10 +35,18 @@ except PermissionError as e:
 
 result = []
 for prompt in prompt_parsed:
-    choosen_func = func_chooser(vocab, model,
-                                prompt, func_parsed)
-    generated = generate_json(model, vocab,
-                              prompt, choosen_func)
+    try:
+        choosen_func = func_chooser(vocab, model,
+                                    prompt, func_parsed)
+    except ValueError as e:
+        print(f"Function selection error: {e}")
+        sys.exit(1)
+    try:
+        generated = generate_json(model, vocab,
+                                  prompt, choosen_func)
+    except RuntimeError as e:
+        print(f"Generation error: {e}")
+        sys.exit(1)
     result.append(OutputResult(prompt=prompt.prompt,
                                name=choosen_func.name,
                                parameters=generated))

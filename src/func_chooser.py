@@ -7,6 +7,8 @@ from llm_sdk import Small_LLM_Model
 def func_chooser(vocab: dict[str, int], model: Small_LLM_Model,
                  prompt: EntryPrompt, functions: list[Function]) -> Function:
     """ This function choose the final function to return """
+    if not functions:
+        raise ValueError("No functions available: empty definition list.")
     current_generated_text = ""
     descriptions = ""
     for f in functions:
