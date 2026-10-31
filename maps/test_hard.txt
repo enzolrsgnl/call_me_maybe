@@ -1,0 +1,23 @@
+nb_drones: 10
+
+start_hub: hub 0 0
+end_hub: goal 6 0
+
+hub: junction1 2 0 [max_drones=3]
+hub: junction2 2 2
+hub: fastpath 4 0 [zone=priority]
+hub: slowpath 4 2
+hub: danger 4 -2 [zone=restricted]
+hub: merge 5 0 [max_drones=2]
+
+connection: hub-junction1 [max_link_capacity=3]
+connection: hub-junction2
+connection: hub-danger
+
+connection: junction1-fastpath [max_link_capacity=2]
+connection: junction2-slowpath
+connection: danger-merge
+
+connection: fastpath-merge [max_link_capacity=2]
+connection: slowpath-merge
+connection: merge-goal [max_link_capacity=2]

@@ -1,20 +1,28 @@
 [project]
-name = "call-me-maybe"
-version = "0.1.0"
-description = "Function calling tool using constrained decoding with a small LLM"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "llm-sdk",
-    "numpy",
-    "pydantic",
-]
+name = "flyin"
+version = "1.0.0"
+description = "Fly-in - 42 School project: drone routing simulation through connected zones"
+requires-python = ">=3.10"
+dependencies = []
 
-[tool.uv.sources]
-llm-sdk = { path = "./llm_sdk" }
+[tool.mypy]
+mypy_path = "src"
+explicit_package_bases = true
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+disallow_untyped_defs = true
+check_untyped_defs = true
 
-[dependency-groups]
-dev = [
-    "flake8>=7.3.0",
-    "mypy>=2.1.0",
-]
+
+
+[tool.flake8]
+max-line-length = 100
+exclude = [".git", "__pycache__", ".mypy_cache", ".pytest_cache", "venv", ".venv"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
